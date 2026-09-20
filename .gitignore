@@ -1,0 +1,17 @@
+# Logs and temporary files
+*.log
+.DS_Store
+Thumbs.db
+
+# Environment variables and secrets (NEVER commit these)
+.env
+.env.local
+*.pem
+
+# Dependencies / Package managers
+node_modules/
+venv/
+.venv/
+ENV/
+dist/
+build/
