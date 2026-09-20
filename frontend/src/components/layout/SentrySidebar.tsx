@@ -9,9 +9,10 @@ import {
   UserCheck,
   Server,
   Cpu,
+  Car,
 } from "lucide-react";
 
-export type NavTab = "operations" | "zones" | "alerts" | "evidence" | "whitelist" | "system";
+export type NavTab = "operations" | "zones" | "alerts" | "evidence" | "crossings" | "whitelist" | "system";
 
 interface SentrySidebarProps {
   activeTab: NavTab;
@@ -55,15 +56,22 @@ export const SentrySidebar: React.FC<SentrySidebarProps> = ({
       icon: FolderLock,
     },
     {
-      id: "whitelist" as NavTab,
+      id: "crossings" as NavTab,
       index: "05",
+      label: "VEHICLE CROSSINGS",
+      subtext: "ANPR Checkpoint & Fence",
+      icon: Car,
+    },
+    {
+      id: "whitelist" as NavTab,
+      index: "06",
       label: "FRS & ANPR REGISTRY",
       subtext: "Personnel & Plates",
       icon: UserCheck,
     },
     {
       id: "system" as NavTab,
-      index: "06",
+      index: "07",
       label: "STATION HEALTH",
       subtext: "Storage & Audit Logs",
       icon: Server,

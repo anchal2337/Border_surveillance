@@ -1,0 +1,10 @@
+{
+  "python.analysis.extraPaths": [
+    "./OutLiners_SIH",
+    "./backend"
+  ],
+  "python.autoComplete.extraPaths": [
+    "./OutLiners_SIH",
+    "./backend"
+  ]
+}

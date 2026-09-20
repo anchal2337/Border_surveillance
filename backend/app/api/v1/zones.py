@@ -92,11 +92,17 @@ def update_camera_zones_dynamically(
         camera_id=camera_id,
         geofence_pts=payload.geofence,
         tripwire_pts=payload.tripwire,
+        geofence_enabled=payload.geofence_enabled,
     )
 
     return {
         "status": "CALIBRATED",
         "camera_id": camera_id,
         "updated_zones": updated_zones,
-        "message": f"Successfully updated {updated_zones} for camera [{camera_id}] in SQLite and live AI engine.",
+        "geofence_enabled": payload.geofence_enabled,
+        "message": (
+            f"Successfully updated {updated_zones} for camera [{camera_id}] in SQLite and live AI engine."
+            + (f" Geofence enforcement set to: {payload.geofence_enabled}." if payload.geofence_enabled is not None else "")
+        ),
     }
+

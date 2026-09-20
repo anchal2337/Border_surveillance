@@ -21,7 +21,7 @@ def get_face_engine():
     global _face_engine_instance
     if _face_engine_instance is None:
         try:
-            from face_engine import FaceRecognitionEngine
+            from face_engine import FaceRecognitionEngine  # type: ignore
             faces_db = str(settings.DATA_DIR / "registered_faces.json")
             _face_engine_instance = FaceRecognitionEngine(db_path=faces_db)
             logger.info("FaceRecognitionEngine initialized successfully.")

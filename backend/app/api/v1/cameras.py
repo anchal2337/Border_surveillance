@@ -106,9 +106,9 @@ def disconnect_camera(
 @router.post("/upload-video", response_model=CameraResponse, summary="Upload CCTV Video & Stream Immediately")
 async def upload_video_file(
     file: UploadFile = File(...),
-    camera_id: str = Form(..., example="CAM-UPLOAD"),
-    camera_name: str = Form(..., example="Recorded Drone Surveillance Replay"),
-    sector_zone: str = Form(default="Sector 4", example="Sector 4"),
+    camera_id: str = Form(...,),
+    camera_name: str = Form(..., ),
+    sector_zone: str = Form(...,),
     current_user: User = Depends(require_commander),
     db: Session = Depends(get_db),
 ):
@@ -138,7 +138,7 @@ async def upload_video_file(
             stream_url=relative_stream_url,
             status=CameraStatus.ONLINE.value,
             fps=30.0,
-            resolution="1080x720",
+            resolution="1920x1080",
             ai_pipeline="ByteTrack + FRS + ANPR + DQN",
             is_active=True,
         )

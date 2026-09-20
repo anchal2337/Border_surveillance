@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from backend.app.core.constants import EvidenceStatus, SeverityLevel
 
 class EvidenceStatusUpdate(BaseModel):
@@ -32,6 +32,24 @@ class EvidenceResponse(BaseModel):
     resolution_notes: Optional[str] = None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("track_id", mode="before")
+    @classmethod
+    def parse_track_id(cls, v):
+        if isinstance(v, bytes):
+            import struct
+            try:
+                if len(v) == 8:
+                    return struct.unpack("<q", v)[0]
+                elif len(v) == 4:
+                    return struct.unpack("<i", v)[0]
+                return int.from_bytes(v, "little")
+            except Exception:
+                return 0
+        try:
+            return int(v)
+        except Exception:
+            return 0
 
     model_config = ConfigDict(from_attributes=True)
 

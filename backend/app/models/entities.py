@@ -46,7 +46,7 @@ class Camera(Base, TimestampMixin):
     rtsp_transport: Mapped[str] = mapped_column(String(10), default="tcp", nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="STANDBY", nullable=False)
     fps: Mapped[float] = mapped_column(Float, default=25.0, nullable=False)
-    resolution: Mapped[str] = mapped_column(String(20), default="1080x720", nullable=False)
+    resolution: Mapped[str] = mapped_column(String(20), default="1920x1080", nullable=False)
     ai_pipeline: Mapped[str] = mapped_column(String(100), default="ByteTrack + FRS + ANPR + DQN", nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     last_heartbeat_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)

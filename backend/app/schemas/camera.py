@@ -10,7 +10,7 @@ class CameraBase(BaseModel):
     stream_url: str = Field(..., examples=["rtsp://admin:pass@192.168.1.101:554/stream1"])
     rtsp_transport: str = Field(default="tcp", examples=["tcp"])
     fps: float = Field(default=25.0, examples=[25.0])
-    resolution: str = Field(default="1080x720", examples=["1080x720"])
+    resolution: str = Field(default="1920x1080", examples=["1920x1080"])
     ai_pipeline: str = Field(default="ByteTrack + FRS + ANPR + DQN", examples=["ByteTrack + FRS + ANPR + DQN"])
 
 class CameraCreate(CameraBase):

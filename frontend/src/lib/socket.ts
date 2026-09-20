@@ -1,10 +1,12 @@
-import { Alert, TelemetryData } from "./types";
+import { Alert, TelemetryData, VehicleCrossing } from "./types";
 import { WS_BASE_URL } from "./api";
 import { playBreachAlarm, playSonarPing } from "./audio";
 
 type AlertCallback = (alert: Alert) => void;
 type InitialAlertsCallback = (alerts: Alert[]) => void;
 type TelemetryCallback = (telemetry: TelemetryData) => void;
+type CrossingCallback = (crossing: VehicleCrossing) => void;
+type EvidenceCallback = (evidence: any) => void;
 
 class SentrySocketManager {
   private alertSocket: WebSocket | null = null;
@@ -12,6 +14,8 @@ class SentrySocketManager {
   private alertListeners: Set<AlertCallback> = new Set();
   private initialListeners: Set<InitialAlertsCallback> = new Set();
   private telemetryListeners: Set<TelemetryCallback> = new Set();
+  private crossingListeners: Set<CrossingCallback> = new Set();
+  private evidenceListeners: Set<EvidenceCallback> = new Set();
   private alertPingInterval: NodeJS.Timeout | null = null;
   private telemetryPingInterval: NodeJS.Timeout | null = null;
   private isConnectingAlert = false;
@@ -46,6 +50,29 @@ class SentrySocketManager {
           if (payload.event === "INITIAL_ALERT_BUFFER" && Array.isArray(payload.alerts)) {
             this.initialListeners.forEach((cb) => cb(payload.alerts));
           } else if (payload.event === "NEW_ALERT" && payload.data) {
+            // Handle Vehicle Crossing Events
+            if (payload.data.event_type === "VEHICLE_CROSSING") {
+              const rawId = payload.data.id;
+              const numericId = typeof rawId === "number" ? rawId : (typeof rawId === "string" ? parseInt(rawId.replace(/\D/g, ""), 10) || Date.now() : Date.now());
+              const cr: VehicleCrossing = {
+                id: numericId,
+                camera_id: payload.data.camera_id,
+                track_id: Number(payload.data.track_id || 0),
+                license_plate: payload.data.plate || payload.data.license_plate,
+                ocr_confidence: Number(payload.data.confidence ?? payload.data.ocr_confidence ?? 0.85),
+                vehicle_type: payload.data.vehicle_type || "car",
+                is_whitelisted: Boolean(payload.data.is_whitelisted),
+                crossing_type: payload.data.crossing_type || "Checkpoint Crossing",
+                image_path: payload.data.image_path || "",
+                source_file: payload.data.source_file,
+                details: payload.data.details,
+                crossed_at: payload.data.timestamp || new Date().toISOString(),
+              };
+              this.crossingListeners.forEach((cb) => cb(cr));
+            } else if (payload.data.event_type === "FORENSIC_EVIDENCE_CAPTURED") {
+              this.evidenceListeners.forEach((cb) => cb(payload.data));
+            }
+
             const alert = payload.data as Alert;
             if (alert.severity === "CRITICAL") {
               playBreachAlarm();
@@ -138,6 +165,18 @@ class SentrySocketManager {
     this.telemetryListeners.add(cb);
     this.connectTelemetry();
     return () => this.telemetryListeners.delete(cb);
+  }
+
+  public onCrossing(cb: CrossingCallback): () => void {
+    this.crossingListeners.add(cb);
+    this.connectAlerts();
+    return () => this.crossingListeners.delete(cb);
+  }
+
+  public onEvidence(cb: EvidenceCallback): () => void {
+    this.evidenceListeners.add(cb);
+    this.connectAlerts();
+    return () => this.evidenceListeners.delete(cb);
   }
 }
 

@@ -19,8 +19,8 @@ class StreamBroadcaster:
         self._latest_jpeg: Optional[bytes] = None
         self._latest_frame_num: int = 0
         self._latest_timestamp: float = 0.0
-        self._width: int = 1280
-        self._height: int = 720
+        self._width: int = 1920
+        self._height: int = 1080
         self._fps: float = 0.0
         self._is_active: bool = True
 

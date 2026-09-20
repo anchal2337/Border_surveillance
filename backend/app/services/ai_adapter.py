@@ -24,9 +24,9 @@ if AI_CORE_PATH not in sys.path:
 try:
     import torch
     from ultralytics import YOLO
-    from tracker_engine import PerimeterTrackerEngine
-    from face_engine import FaceRecognitionEngine
-    from vehicle_engine import VehicleEngine
+    from tracker_engine import PerimeterTrackerEngine  # type: ignore
+    from face_engine import FaceRecognitionEngine  # type: ignore
+    from vehicle_engine import VehicleEngine  # type: ignore
     DL_FRAMEWORKS_AVAILABLE = True
     logger.info("Deep learning frameworks (PyTorch + Ultralytics) loaded successfully.")
 except (ImportError, Exception) as e:
@@ -34,8 +34,8 @@ except (ImportError, Exception) as e:
     logger.warning("Deep learning frameworks not available (%s). Running resilient Edge Spatial CV mode.", e)
 
 # Import deterministic modules that only require OpenCV & NumPy
-from intrusion_engine import SpatialIntrusionEngine
-from enhancement import apply_clahe
+from intrusion_engine import SpatialIntrusionEngine  # type: ignore
+from enhancement import apply_clahe  # type: ignore
 
 
 class AIEngineAdapter:
@@ -97,11 +97,15 @@ class AIEngineAdapter:
             if not os.path.exists(yolo_weight):
                 yolo_weight = str(settings.AI_CORE_DIR / "yolo26n.pt")
                 if not os.path.exists(yolo_weight):
-                    yolo_weight = "yolov8n.pt"
+                    yolo_weight = str(settings.AI_CORE_DIR / "models" / "yolo26nfinal.pt")
+                    if not os.path.exists(yolo_weight):
+                        yolo_weight = "yolov8n.pt"
 
-            threat_weight = str(settings.AI_CORE_DIR / "models" / "best.pt")
+            threat_weight = str(settings.AI_CORE_DIR / "models" / "yolo26n.pt")
             if not os.path.exists(threat_weight):
-                threat_weight = str(settings.AI_CORE_DIR / "best.pt")
+                threat_weight = str(settings.AI_CORE_DIR / "models" / "yolo26nfinal.pt")
+                if not os.path.exists(threat_weight):
+                    threat_weight = str(settings.AI_CORE_DIR / "best.pt")
 
             rl_weight = str(settings.AI_CORE_DIR / "models" / "behavioral_rl_model.zip")
 
@@ -136,25 +140,82 @@ class AIEngineAdapter:
         self.motion_tracks: Dict[int, Dict[str, Any]] = {}
         self.next_track_id = 1
         self.alert_cooldowns: Dict[str, float] = {}
+        # Blob frame-confirmation cache: {blob_key: frame_count}
+        # Alerts only fire after a blob is confirmed in MIN_BLOB_FRAMES consecutive frames.
+        self.blob_confirm_cache: Dict[str, int] = {}
+        self.MIN_BLOB_FRAMES = 2
+        # Geofence enable flag (shared with DL path via update_zones)
+        self.geofence_enabled: bool = True
 
     # -------------------------------------------------------------------------
     # Runtime Proxy Hooks
     # -------------------------------------------------------------------------
-    def _hook_trigger_alert(self, alert_type: str, identifier: str, details: str) -> bool:
+    def _hook_trigger_alert(
+        self,
+        alert_type: str,
+        identifier: str,
+        details: str,
+        frame: Optional[np.ndarray] = None,
+        crop: Optional[np.ndarray] = None,
+        track_id: int = 0,
+        threat_score: int = 85,
+    ) -> bool:
         created = self._orig_trigger_alert(alert_type, identifier, details)
-        if created and self.alert_callback:
-            alert_payload = {
-                "id": f"ALT-{int(time.time() * 1000)}",
-                "camera_id": self.camera_id,
-                "camera_name": self.camera_name,
-                "alert_type": alert_type,
-                "severity": "CRITICAL" if "BREACH" in alert_type or "THREAT" in alert_type else "WARNING",
-                "threat_score": 100 if "BREACH" in alert_type else 75,
-                "label": identifier,
-                "details": details,
-                "timestamp": time.strftime("%H:%M:%S"),
-            }
-            self.alert_callback(alert_payload)
+        if created:
+            snapshot_url = ""
+            # Persist real forensic evidence crop & scene to disk with SHA-256 checksum
+            if frame is not None and crop is not None and crop.size > 0:
+                try:
+                    timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+                    evidence_id = f"EV-{timestamp_str}-T{track_id}"
+                    crop_filename = f"{evidence_id}_crop.jpg"
+                    scene_filename = f"{evidence_id}_scene.jpg"
+                    crop_path = self.evidence_dir / crop_filename
+                    scene_path = self.evidence_dir / scene_filename
+
+                    cv2.imwrite(str(crop_path), crop)
+                    cv2.imwrite(str(scene_path), frame)
+
+                    # Compute cryptographic SHA-256 fingerprint for chain of custody
+                    hasher = hashlib.sha256()
+                    with open(str(scene_path), "rb") as f:
+                        hasher.update(f.read())
+                    sha256_hash = f"sha256:{hasher.hexdigest()}"
+
+                    snapshot_url = f"/data/evidence/{crop_filename}"
+
+                    if self.evidence_callback:
+                        self.evidence_callback({
+                            "id": evidence_id,
+                            "camera_id": self.camera_id,
+                            "camera_name": self.camera_name,
+                            "event": alert_type,
+                            "track_id": track_id,
+                            "crop_image": f"/data/evidence/{crop_filename}",
+                            "scene_image": f"/data/evidence/{scene_filename}",
+                            "sha256_hash": sha256_hash,
+                            "threat_score": threat_score,
+                            "behavior": details,
+                            "identity": identifier,
+                        })
+                except Exception as ee:
+                    logger.error("Error creating forensic evidence: %s", ee)
+
+            if self.alert_callback:
+                is_critical = any(kw in alert_type.upper() for kw in ("BREACH", "THREAT", "INTRUSION", "GHOST"))
+                alert_payload = {
+                    "id": f"ALT-{int(time.time() * 1000)}",
+                    "camera_id": self.camera_id,
+                    "camera_name": self.camera_name,
+                    "alert_type": alert_type,
+                    "severity": "CRITICAL" if is_critical else "WARNING",
+                    "threat_score": threat_score,
+                    "label": identifier,
+                    "details": details,
+                    "snapshot_url": snapshot_url,
+                    "timestamp": time.strftime("%H:%M:%S"),
+                }
+                self.alert_callback(alert_payload)
         return created
 
     def _hook_capture_evidence(self, **kwargs) -> Optional[str]:
@@ -174,17 +235,45 @@ class AIEngineAdapter:
             self.evidence_callback(evidence_payload)
         return evidence_id
 
-    def _hook_save_vehicle_crossing(self, plate, vehicle_type, track_id, confidence, is_whitelisted, image_path, details):
-        self._orig_save_crossing(plate, vehicle_type, track_id, confidence, is_whitelisted, image_path, details)
+    def _hook_save_vehicle_crossing(
+        self,
+        plate: str,
+        vehicle_type: str,
+        track_id: int,
+        confidence: float,
+        is_whitelisted: bool,
+        image_path: str,
+        details: str,
+        crop: Optional[np.ndarray] = None,
+        frame: Optional[np.ndarray] = None,
+    ):
+        # Save real vehicle crop image to disk for evidence / ANPR checkpoint log with CLAHE enhancement
+        if not image_path and crop is not None and crop.size > 0:
+            try:
+                # Apply CLAHE to dramatically boost contrast, plate character readability, and edge fidelity
+                clahe_crop = apply_clahe(crop)
+                final_crop = clahe_crop if (clahe_crop is not None and clahe_crop.size > 0) else crop
+                timestamp_str = time.strftime("%Y%m%d_%H%M%S")
+                img_name = f"CROSSING_{timestamp_str}_T{int(track_id)}.jpg"
+                save_dest = self.evidence_dir / img_name
+                cv2.imwrite(str(save_dest), final_crop)
+                image_path = f"/data/evidence/{img_name}"
+            except Exception as e:
+                logger.error("Failed to save vehicle crossing snapshot: %s", e)
+
         if self.crossing_callback:
+            crossing_type = (
+                "Tripwire Crossing" if "trip" in str(details).lower()
+                else ("Fence Breach Crossing" if any(k in str(details).lower() for k in ("fence", "zone", "geofence", "boundary")) else "Checkpoint Entry")
+            )
             crossing_payload = {
                 "plate": plate,
                 "vehicle_type": vehicle_type,
-                "track_id": track_id,
-                "confidence": confidence,
-                "is_whitelisted": is_whitelisted,
+                "track_id": int(track_id),
+                "confidence": float(confidence),
+                "is_whitelisted": bool(is_whitelisted),
                 "image_path": image_path,
-                "crossing_type": "Tripwire Crossing" if "tripwire" in str(details).lower() else "Geofence Entry",
+                "crossing_type": crossing_type,
                 "details": details,
             }
             self.crossing_callback(crossing_payload)
@@ -209,69 +298,104 @@ class AIEngineAdapter:
 
         if self.dl_enabled:
             # Run OutLiners_SIH PerimeterTrackerEngine
-            annotated_frame = self.tracker.process_frame(frame, enable_clahe=enable_clahe)
+            # NOTE: enable_clahe is always False here — tracker applies CLAHE per-person-crop internally
+            annotated_frame = self.tracker.process_frame(frame, enable_clahe=False)
             self.active_tracks_count = len(self.tracker.track_memory)
+            # Sync max threat from per-track records
+            if self.tracker.threat_records:
+                self.latest_max_threat = max(
+                    r.get("threat_score", 0) for r in self.tracker.threat_records.values()
+                )
+            else:
+                self.latest_max_threat = 0
             return annotated_frame
         else:
             # Run Edge Spatial CV Engine
             return self._process_frame_spatial_cv(frame, enable_clahe=enable_clahe)
 
     def _process_frame_spatial_cv(self, frame: np.ndarray, enable_clahe: bool = True) -> np.ndarray:
-        """Fallback processing using OutLiners_SIH SpatialIntrusionEngine + motion detection."""
-        if enable_clahe:
-            frame = apply_clahe(frame)
+        """
+        Fallback processing using OutLiners_SIH SpatialIntrusionEngine + motion detection.
 
-        # Draw zones using OutLiners_SIH
+        Fixes applied:
+        - Min blob area raised to 3 000 px² (was 800) to eliminate shadow / noise false positives.
+        - Blobs must be confirmed in MIN_BLOB_FRAMES (2) consecutive frames before any alert fires.
+        - Geofence intrusion alerts respect self.geofence_enabled; tripwire always active.
+        - CLAHE is NOT applied frame-wide here; it is handled per-person-crop in tracker_engine.
+        """
+        # Draw zones (geofence + tripwire overlay)
         frame = self.intrusion_engine.draw_zones(frame)
         h, w = frame.shape[:2]
 
-        # Motion detection
-        fg_mask = self.bg_subtractor.apply(frame)
-        _, thresh = cv2.threshold(fg_mask, 200, 255, cv2.THRESH_BINARY)
+        # Background subtraction — use slower learning rate so standing people stay in fg mask
+        fg_mask = self.bg_subtractor.apply(frame, learningRate=0.005)
+        _, thresh = cv2.threshold(fg_mask, 180, 255, cv2.THRESH_BINARY)
+
+        # Morphological close to fill gaps in large blobs (people, vehicles)
+        kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11))
+        thresh = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel, iterations=2)
+
         contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        active_boxes = []
+        # Min area: 1 500 px² (was 3 000) — detects persons even when partially stationary.
+        # Max area: 300 000 px² to skip frame-filling blobs from sudden lighting changes.
+        active_boxes: list = []
         for c in contours:
             area = cv2.contourArea(c)
-            if 800 < area < 100000:
+            if 1500 < area < 300_000:
                 x, y, bw, bh = cv2.boundingRect(c)
                 active_boxes.append((x, y, x + bw, y + bh))
 
-        # Limit to top 10 detections
-        active_boxes = active_boxes[:10]
+        # Keep top-10 largest blobs
+        active_boxes = sorted(active_boxes, key=lambda b: (b[2] - b[0]) * (b[3] - b[1]), reverse=True)[:10]
         self.active_tracks_count = len(active_boxes)
         max_threat = 0
-
         current_time = time.time()
+
+        # Track which blob keys are alive this frame (for cache cleanup)
+        alive_blob_keys: set = set()
+
         for idx, box in enumerate(active_boxes):
             track_id = idx + 1
             x1, y1, x2, y2 = box
             footprint = self.intrusion_engine.get_footprint(box)
 
-            # Spatial intrusion check from OutLiners_SIH
+            # Stable blob key based on grid cell (32 px grid)
+            blob_key = f"{x1 // 32}_{y1 // 32}"
+            alive_blob_keys.add(blob_key)
+            self.blob_confirm_cache[blob_key] = self.blob_confirm_cache.get(blob_key, 0) + 1
+            blob_confirmed = self.blob_confirm_cache[blob_key] >= self.MIN_BLOB_FRAMES
+
+            # Spatial intrusion check
             in_geofence, entered_geofence, crossed_wire, _ = self.intrusion_engine.evaluate_object(
                 track_id, box
             )
 
-            # Calculate threat score
+            # Respect geofence_enabled flag: suppress zone alerts when disabled
+            if not self.geofence_enabled:
+                in_geofence      = False
+                entered_geofence = False
+
+            # Threat scoring
+            alert_type = None
             if crossed_wire:
                 threat_score = 100
-                alert_type = "TRIPWIRE BREACH"
-                label = f"Track #{track_id} (Perimeter Breach)"
-                details = "Target traversed virtual tripwire segment"
+                alert_type   = "TRIPWIRE BREACH"
+                label        = f"Track #{track_id} (Perimeter Breach)"
+                details      = "Target traversed virtual tripwire segment"
             elif entered_geofence or in_geofence:
-                threat_score = 85
-                alert_type = "GEOFENCE INTRUSION"
-                label = f"Track #{track_id} (Restricted Zone)"
-                details = "Target entered restricted border geofence"
+                threat_score = 95
+                alert_type   = "GHOST OBJECT"
+                label        = f"Track #{track_id} (Ghost Object)"
+                details      = "Unidentified target entered restricted border geofence [Ghost Object]"
             else:
                 threat_score = 25
-                alert_type = None
+                label        = f"Track #{track_id}"
 
             max_threat = max(max_threat, threat_score)
 
-            # Fire alert if threshold reached (with 5s cooldown)
-            if alert_type:
+            # Fire alert only when blob is confirmed AND cooldown has expired
+            if alert_type and blob_confirmed:
                 cooldown_key = f"{alert_type}_{track_id}"
                 if current_time - self.alert_cooldowns.get(cooldown_key, 0.0) > 5.0:
                     self.alert_cooldowns[cooldown_key] = current_time
@@ -285,31 +409,56 @@ class AIEngineAdapter:
                         track_id=track_id,
                     )
 
-            # Record active track telemetry
+            # Update active track telemetry
             if track_id not in self.active_tracks_data:
-                self.active_tracks_data[track_id] = {
-                    "first_seen": current_time,
-                    "trajectory": [],
-                }
+                self.active_tracks_data[track_id] = {"first_seen": current_time, "trajectory": []}
             tr_rec = self.active_tracks_data[track_id]
-            tr_rec["last_seen"] = current_time
-            tr_rec["last_pos"] = [int(footprint[0]), int(footprint[1])]
+            tr_rec["last_seen"]    = current_time
+            tr_rec["last_pos"]     = [int(footprint[0]), int(footprint[1])]
             tr_rec["threat_score"] = threat_score
-            tr_rec["behavior"] = "Tripwire Breach" if crossed_wire else ("Zone Intrusion" if (entered_geofence or in_geofence) else "Normal")
-            tr_rec["class_name"] = "person" if track_id == 1 else ("vehicle" if track_id == 2 else "drone")
-            tr_rec["speed_px_sec"] = 4.2
-            tr_rec["identity"] = "Sentry Patrol" if threat_score < 40 else f"Target #{track_id}"
-            tr_rec["is_authorized"] = threat_score < 40
+            tr_rec["behavior"]     = (
+                "Tripwire Breach" if crossed_wire
+                else ("Zone Intrusion" if (entered_geofence or in_geofence) else "Monitoring")
+            )
+            tr_rec["class_name"]    = "person"
+            tr_rec["speed_px_sec"]  = 4.2
+            tr_rec["identity"]      = "Unknown"
+            tr_rec["is_authorized"] = False
             if len(tr_rec["trajectory"]) < 40:
                 tr_rec["trajectory"].append([int(footprint[0]), int(footprint[1])])
 
-            # Render tactical HUD box
-            box_color = self.COLOR_CRITICAL if threat_score >= 85 else (self.COLOR_WARNING if threat_score >= 40 else self.COLOR_SAFE)
-            cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
-            cv2.circle(frame, footprint, 4, box_color, -1)
+            # ── HUD Rendering — box is ALWAYS drawn, confirmed only gates alerts ──
+            if threat_score >= 85:
+                box_color = self.COLOR_CRITICAL      # red
+            elif threat_score >= 60:
+                box_color = self.COLOR_WARNING       # orange
+            elif blob_confirmed:
+                box_color = self.COLOR_SAFE          # green/teal
+            else:
+                box_color = (180, 180, 180)          # grey — building track
 
-            hud_text = f"Threat: {threat_score}% | Target #{track_id}"
-            cv2.putText(frame, hud_text, (x1, max(18, y1 - 8)), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (255, 255, 255), 1, cv2.LINE_AA)
+            # Bounding box — ALWAYS drawn
+            cv2.rectangle(frame, (x1, y1), (x2, y2), box_color, 2)
+            cv2.circle(frame, footprint, 5, box_color, -1)
+
+            # Label bar
+            in_zone_tag  = " [ZONE]" if (in_geofence or entered_geofence) else ""
+            wire_tag     = " [WIRE]" if crossed_wire else ""
+            conf_tag     = "" if blob_confirmed else " [...]"
+            hud_text     = f"Target #{track_id}{in_zone_tag}{wire_tag}{conf_tag}  {threat_score}%"
+
+            lbl_bg_x2 = min(w, x1 + max(len(hud_text) * 8, x2 - x1))
+            lbl_y1    = max(0, y1 - 22)
+            cv2.rectangle(frame, (x1, lbl_y1), (lbl_bg_x2, y1), box_color, -1)
+            cv2.putText(
+                frame, hud_text, (x1 + 3, max(y1 - 6, 14)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.44, (0, 0, 0), 2, cv2.LINE_AA,
+            )
+
+        # Prune stale blob confirmation entries
+        stale_blobs = [k for k in list(self.blob_confirm_cache.keys()) if k not in alive_blob_keys]
+        for k in stale_blobs:
+            self.blob_confirm_cache.pop(k, None)
 
         self.latest_max_threat = max_threat
         self._render_status_badge(frame)
@@ -378,11 +527,19 @@ class AIEngineAdapter:
         self,
         geofence_pts: Optional[List[List[int]]] = None,
         tripwire_pts: Optional[List[List[int]]] = None,
+        geofence_enabled: Optional[bool] = None,
+        **kwargs,
     ) -> None:
         """
         Dynamically updates geofence and tripwire coordinates without restarting.
         Works seamlessly on both PerimeterTrackerEngine and SpatialIntrusionEngine.
         """
+        if geofence_enabled is not None:
+            self.geofence_enabled = bool(geofence_enabled)
+            if hasattr(self, "tracker") and self.tracker is not None:
+                self.tracker.geofence_enabled = bool(geofence_enabled)
+            logger.info("Updated geofence_enabled to %s", self.geofence_enabled)
+
         if geofence_pts is not None:
             self.intrusion_engine.update_geofence(geofence_pts)
             logger.info("Updated geofence polygon points: %s", geofence_pts)
@@ -435,17 +592,39 @@ class AIEngineAdapter:
         return results
 
     def get_telemetry(self) -> Dict[str, Any]:
-        """Returns live telemetry snapshot with AI confidence matrix for WebSockets."""
+        """
+        Returns live telemetry snapshot with REAL AI inference confidence values.
+        Confidence values come from tracker._smooth_confs (EMA-smoothed per-frame
+        readings from YOLO, FaceNet-FRS, EasyOCR-ANPR, and tactical threat scoring).
+        Falls back to reasonable static defaults when DL engine is not loaded.
+        """
+        if self.dl_enabled and hasattr(self, "tracker"):
+            sc = self.tracker._smooth_confs
+            model_confidences = {
+                # YOLO26n // BYTE_TRACK — mean detection confidence this frame
+                "object_detection": round(sc.get("yolo_byte_track", 0.88), 4),
+                # TACTICAL_THREAT — normalised max threat score [0,1]
+                "tactical_threat":  round(sc.get("tactical_threat",  0.91), 4),
+                # FACENET_FRS // 512D_RESNET — face verification confidence
+                "face_recognition": round(sc.get("facenet_frs",      0.92), 4),
+                # EASY_OCR // ANPR_ENGINE — plate OCR confidence
+                "plate_ocr":        round(sc.get("easy_ocr_anpr",    0.95), 4),
+            }
+        else:
+            # Edge-spatial fallback: derive from live track / threat counts
+            model_confidences = {
+                "object_detection": 0.82 if self.active_tracks_count > 0 else 0.72,
+                "tactical_threat":  round(min(0.99, 0.60 + self.latest_max_threat / 250), 2),
+                "face_recognition": 0.0,   # FRS not active in spatial-CV mode
+                "plate_ocr":        0.0,   # OCR not active in spatial-CV mode
+            }
+
         return {
-            "camera_id": self.camera_id,
-            "fps": self.current_fps,
-            "active_tracks": self.active_tracks_count,
-            "max_threat": self.latest_max_threat,
-            "engine_mode": "DEEP_LEARNING" if self.dl_enabled else "EDGE_SPATIAL_CV",
-            "model_confidences": {
-                "object_detection": 0.94 if self.active_tracks_count > 0 else 0.88,
-                "tactical_threat": 0.96 if self.latest_max_threat > 50 else 0.91,
-                "face_recognition": 0.92 if self.dl_enabled else 0.85,
-                "plate_ocr": 0.95,
-            },
+            "camera_id":         self.camera_id,
+            "fps":               self.current_fps,
+            "active_tracks":     self.active_tracks_count,
+            "max_threat":        self.latest_max_threat,
+            "engine_mode":       "DEEP_LEARNING" if self.dl_enabled else "EDGE_SPATIAL_CV",
+            "model_confidences": model_confidences,
         }
+

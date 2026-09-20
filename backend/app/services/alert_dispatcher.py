@@ -22,16 +22,21 @@ class AlertDispatcher:
 
     _instance = None
     _lock = threading.Lock()
+    _alert_clients: List[WebSocket]
+    _telemetry_clients: List[WebSocket]
+    _clients_lock: threading.Lock
+    _recent_alerts: deque
+    _event_loop: Optional[asyncio.AbstractEventLoop]
 
     def __new__(cls):
         with cls._lock:
             if cls._instance is None:
                 cls._instance = super(AlertDispatcher, cls).__new__(cls)
-                cls._instance._alert_clients: List[WebSocket] = []
-                cls._instance._telemetry_clients: List[WebSocket] = []
+                cls._instance._alert_clients = []
+                cls._instance._telemetry_clients = []
                 cls._instance._clients_lock = threading.Lock()
                 cls._instance._recent_alerts = deque(maxlen=100)
-                cls._instance._event_loop: Optional[asyncio.AbstractEventLoop] = None
+                cls._instance._event_loop = None
             return cls._instance
 
     def set_event_loop(self, loop: asyncio.AbstractEventLoop):

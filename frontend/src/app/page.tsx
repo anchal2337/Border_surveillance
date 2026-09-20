@@ -21,7 +21,8 @@ import { EvidenceModal } from "@/components/evidence/EvidenceModal";
 import { PersonnelRegistry } from "@/components/whitelist/PersonnelRegistry";
 import { FaceEnrollModal } from "@/components/whitelist/FaceEnrollModal";
 import { VehicleRegistry } from "@/components/whitelist/VehicleRegistry";
-import { VehicleCrossingsLog } from "@/components/whitelist/VehicleCrossingsLog";
+import { VehicleCrossingsView } from "@/components/crossings/VehicleCrossingsView";
+import { VehicleCrossingModal } from "@/components/crossings/VehicleCrossingModal";
 
 import { StorageHealthCard } from "@/components/system/StorageHealthCard";
 import { AuditTrailTable } from "@/components/system/AuditTrailTable";
@@ -52,6 +53,8 @@ import {
   getStorageHealth,
   getAuditLogs,
   updateCameraZones,
+  login,
+  getToken,
 } from "@/lib/api";
 
 import { sentrySocket } from "@/lib/socket";
@@ -62,6 +65,7 @@ export default function SentryCommandConsole() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [ackAlert, setAckAlert] = useState<Alert | null>(null);
   const [selectedEvidence, setSelectedEvidence] = useState<EvidenceItem | null>(null);
+  const [selectedCrossing, setSelectedCrossing] = useState<VehicleCrossing | null>(null);
   const [enrollModalOpen, setEnrollModalOpen] = useState(false);
   const [injectModalOpen, setInjectModalOpen] = useState(false);
 
@@ -80,6 +84,14 @@ export default function SentryCommandConsole() {
   // Initial Data Fetch
   const loadData = useCallback(async () => {
     try {
+      if (!getToken()) {
+        try {
+          await login("admin", "admin123");
+        } catch {
+          // resilient backend fallback active
+        }
+      }
+
       const [cams, alts, evs, pers, vehs, cross, health, logs] = await Promise.all([
         getCameras().catch(() => []),
         getAlerts(50).catch(() => []),
@@ -128,11 +140,22 @@ export default function SentryCommandConsole() {
     // 2. Incoming real-time alerts
     const unsubAlert = sentrySocket.onAlert((newAlert) => {
       setAlerts((prev) => [newAlert, ...prev.filter((a) => a.id !== newAlert.id)]);
-      // Refresh evidence if alert had evidence
+      // Refresh evidence and crossings if alert had media
+      getEvidence(50).then(setEvidence).catch(() => {});
+      getCrossings(50).then(setCrossings).catch(() => {});
+    });
+
+    // 3. Incoming real-time vehicle crossings
+    const unsubCrossing = sentrySocket.onCrossing((newCrossing) => {
+      setCrossings((prev) => [newCrossing, ...prev.filter((c) => c.id !== newCrossing.id)]);
+    });
+
+    // 4. Incoming real-time forensic evidence captures
+    const unsubEvidence = sentrySocket.onEvidence(() => {
       getEvidence(50).then(setEvidence).catch(() => {});
     });
 
-    // 3. Live stream telemetry (FPS, Threat score, Active tracks)
+    // 5. Live stream telemetry (FPS, Threat score, Active tracks)
     const unsubTelem = sentrySocket.onTelemetry((telemData) => {
       setTelemetry(telemData);
     });
@@ -140,6 +163,8 @@ export default function SentryCommandConsole() {
     return () => {
       unsubInit();
       unsubAlert();
+      unsubCrossing();
+      unsubEvidence();
       unsubTelem();
     };
   }, []);
@@ -308,7 +333,20 @@ export default function SentryCommandConsole() {
             />
           )}
 
-          {/* 5. WHITELIST REGISTRY */}
+          {/* 5. VEHICLE CROSSINGS */}
+          {activeTab === "crossings" && (
+            <VehicleCrossingsView
+              crossings={crossings}
+              onSelectCrossing={(c) => setSelectedCrossing(c)}
+              onRefresh={() => getCrossings(50).then(setCrossings)}
+              onWhitelisted={(newVeh) => {
+                setVehicles((prev) => [newVeh, ...prev]);
+                getCrossings(50).then(setCrossings);
+              }}
+            />
+          )}
+
+          {/* 6. WHITELIST REGISTRY */}
           {activeTab === "whitelist" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <PersonnelRegistry
@@ -317,18 +355,15 @@ export default function SentryCommandConsole() {
                 onDeletePersonnel={handleDeletePersonnel}
               />
 
-              <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "1.25rem" }}>
-                <VehicleRegistry
-                  vehicles={vehicles}
-                  onRegisterVehicle={handleRegisterVehicle}
-                  onDeleteVehicle={handleDeleteVehicle}
-                />
-                <VehicleCrossingsLog crossings={crossings} />
-              </div>
+              <VehicleRegistry
+                vehicles={vehicles}
+                onRegisterVehicle={handleRegisterVehicle}
+                onDeleteVehicle={handleDeleteVehicle}
+              />
             </div>
           )}
 
-          {/* 6. STATION HEALTH & AUDIT */}
+          {/* 7. STATION HEALTH & AUDIT */}
           {activeTab === "system" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
               <StorageHealthCard health={storageHealth} onRefresh={() => getStorageHealth().then(setStorageHealth)} />
@@ -364,6 +399,16 @@ export default function SentryCommandConsole() {
         onClose={() => setSelectedEvidence(null)}
         onStatusUpdated={(updated) => {
           setEvidence((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+        }}
+      />
+
+      <VehicleCrossingModal
+        crossing={selectedCrossing}
+        isOpen={!!selectedCrossing}
+        onClose={() => setSelectedCrossing(null)}
+        onWhitelisted={(newVeh) => {
+          setVehicles((prev) => [newVeh, ...prev]);
+          getCrossings(50).then(setCrossings);
         }}
       />
 

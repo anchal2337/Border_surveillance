@@ -35,3 +35,14 @@ class DynamicZoneCalibrationPayload(BaseModel):
     camera_id: str = Field(..., examples=["CAM-01"])
     geofence: Optional[List[List[int]]] = Field(None, examples=[[[162, 252], [918, 252], [1026, 612], [54, 612]]])
     tripwire: Optional[List[List[int]]] = Field(None, examples=[[[108, 468], [972, 468]]])
+    geofence_enabled: Optional[bool] = Field(
+        None,
+        description=(
+            "Toggle geofence alert enforcement on/off for this camera. "
+            "True  → zone entry/dwell alerts active (default). "
+            "False → zone alerts suppressed; tripwire crossing alerts still active. "
+            "Omit field to leave the current state unchanged."
+        ),
+        examples=[True, False],
+    )
+

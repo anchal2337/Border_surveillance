@@ -67,52 +67,7 @@ def init_db(clean_dynamic: bool = False) -> None:
         else:
             logger.info("Admin operator verified.")
 
-        # 2. Provision default Local Webcam (CAM-USB) for immediate 1-click dynamic testing
-        webcam = db.query(Camera).filter(Camera.id == "CAM-USB").first()
-        if not webcam:
-            logger.info("Provisioning Local Webcam channel (CAM-USB)...")
-            webcam = Camera(
-                id="CAM-USB",
-                name="Local Webcam / USB Sensor",
-                sector_zone="Command HQ",
-                source_type="WEBCAM",
-                stream_url="0",
-                rtsp_transport="tcp",
-                status="STANDBY",
-                fps=30.0,
-                resolution="1080x720",
-                ai_pipeline="Edge Spatial CV + FRS",
-                is_active=True,
-            )
-            db.add(webcam)
-            db.commit()
-
-            # Add default calibration zones for webcam
-            geofence = CameraZone(
-                camera_id="CAM-USB",
-                name="Perimeter Security Zone",
-                zone_type="GEOFENCE",
-                coordinates=json.dumps([[150, 150], [930, 150], [930, 600], [150, 600]]),
-                alert_on_entry=True,
-                alert_on_exit=False,
-                sensitivity=1.0,
-                is_active=True,
-            )
-            tripwire = CameraZone(
-                camera_id="CAM-USB",
-                name="Tactical Breach Tripwire",
-                zone_type="TRIPWIRE",
-                coordinates=json.dumps([[100, 420], [980, 420]]),
-                alert_on_entry=True,
-                alert_on_exit=False,
-                sensitivity=1.0,
-                is_active=True,
-            )
-            db.add(geofence)
-            db.add(tripwire)
-            db.commit()
-
-        logger.info("100% Dynamic Database schema initialized successfully.")
+        logger.info("100% Dynamic Database schema initialized successfully (no mock cameras/zones seeded).")
 
     except Exception as e:
         logger.error("Database initialization failed: %s", e)
