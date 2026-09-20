@@ -1,0 +1,410 @@
+/* =============================================================================
+   IBVAP TACTICAL DEFENSE TERMINAL - SENTRY COMMAND DESIGN SYSTEM
+   Palette Specification (Humanized Non-AI Military Defense):
+     Background: #111315
+     Surface:    #191C1F
+     Card:       #22262A
+     Primary:    #D6A84F
+     Secondary:  #A98A4F
+     Text:       #F2F1EC
+     Muted:      #92979B
+     Border:     #34383B
+     Critical:   #D95C5C
+     Success:    #72A879
+   ============================================================================= */
+
+@import "tailwindcss";
+
+@theme {
+  --color-base: #111315;
+  --color-surface: #191C1F;
+  --color-card: #22262A;
+  --color-primary: #D6A84F;
+  --color-secondary: #A98A4F;
+  --color-text-main: #F2F1EC;
+  --color-text-muted: #92979B;
+  --color-border-color: #34383B;
+  --color-alert-critical: #D95C5C;
+  --color-alert-success: #72A879;
+
+  --font-display: var(--font-display), "Rajdhani", "Chakra Petch", sans-serif;
+  --font-mono: var(--font-mono), "IBM Plex Mono", "Share Tech Mono", monospace;
+  --font-body: var(--font-body), "Plus Jakarta Sans", -apple-system, sans-serif;
+}
+
+:root {
+  /* User-Defined Tactical Color Palette */
+  --bg-base: #111315;
+  --bg-surface: #191C1F;
+  --bg-card: #22262A;
+  --primary: #D6A84F;
+  --secondary: #A98A4F;
+  --text-main: #F2F1EC;
+  --text-muted: #92979B;
+  --border-color: #34383B;
+  --alert-critical: #D95C5C;
+  --alert-success: #72A879;
+
+  /* Supplemental Tactical Tones */
+  --primary-hover: #e5b964;
+  --primary-glow: rgba(214, 168, 79, 0.18);
+  --critical-hover: #e06868;
+  --critical-glow: rgba(217, 92, 92, 0.22);
+  --success-glow: rgba(114, 168, 121, 0.22);
+  --card-hover: #272c31;
+  --surface-hover: #1e2226;
+  --border-subtle: #292d30;
+
+  /* Typography Variables */
+  --font-display-var: var(--font-display), "Rajdhani", "Chakra Petch", sans-serif;
+  --font-mono-var: var(--font-mono), "IBM Plex Mono", "Share Tech Mono", monospace;
+  --font-body-var: var(--font-body), "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  background-color: var(--bg-base);
+  color: var(--text-main);
+  font-family: var(--font-body-var);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 13.5px;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Technical Micro-Grid Background Pattern */
+  background-image: 
+    linear-gradient(rgba(52, 56, 59, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(52, 56, 59, 0.12) 1px, transparent 1px);
+  background-size: 36px 36px;
+  background-position: -1px -1px;
+}
+
+/* Headings with Rajdhani Display Typography */
+h1, h2, h3, h4, h5, h6, .font-display {
+  font-family: var(--font-display-var);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+/* Monospace Telemetry Typography */
+.font-mono {
+  font-family: var(--font-mono-var);
+  font-feature-settings: "tnum" 1, "zero" 1;
+  letter-spacing: -0.02em;
+}
+
+/* Custom Tactical Scrollbars */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 1px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--secondary);
+}
+
+/* =============================================================================
+   TACTICAL COMPONENT UTILITIES (NOT GENERIC AI CARDS)
+   ============================================================================= */
+
+/* Precision Tactical Container with Notched Corners */
+.tactical-card {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  position: relative;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tactical-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 6px;
+  border-top: 2px solid var(--primary);
+  border-left: 2px solid var(--primary);
+  pointer-events: none;
+}
+
+.tactical-card::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  border-bottom: 2px solid var(--primary);
+  border-right: 2px solid var(--primary);
+  pointer-events: none;
+}
+
+/* Tactical Cutout Header Bar */
+.tactical-card-header {
+  background-color: var(--bg-card);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.65rem 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tactical-card-header h3,
+.tactical-card-header h4 {
+  font-family: var(--font-display-var);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Section Technical Index Identifier */
+.section-id {
+  font-family: var(--font-mono-var);
+  font-size: 0.65rem;
+  color: var(--secondary);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+   TACTILE MILITARY BUTTONS & SWITCHES
+   ============================================================================= */
+
+.tactical-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.85rem;
+  font-family: var(--font-display-var);
+  font-size: 0.825rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: all 0.15s ease-in-out;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  position: relative;
+  user-select: none;
+  border-radius: 2px;
+}
+
+.tactical-btn:focus-visible {
+  outline: 1px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.tactical-btn-primary {
+  background-color: var(--primary);
+  color: #111315;
+  border-color: var(--secondary);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+.tactical-btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  box-shadow: 0 0 10px var(--primary-glow);
+  transform: translateY(-1px);
+}
+.tactical-btn-primary:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.tactical-btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tactical-btn-secondary {
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  border-color: var(--border-color);
+}
+.tactical-btn-secondary:hover:not(:disabled) {
+  background-color: var(--card-hover);
+  border-color: var(--secondary);
+  color: var(--primary);
+}
+
+.tactical-btn-critical {
+  background-color: rgba(217, 92, 92, 0.12);
+  color: var(--alert-critical);
+  border-color: rgba(217, 92, 92, 0.4);
+}
+.tactical-btn-critical:hover:not(:disabled) {
+  background-color: var(--alert-critical);
+  color: #ffffff;
+  box-shadow: 0 0 12px var(--critical-glow);
+}
+
+/* Tactical Input Fields */
+.tactical-input {
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  padding: 0.45rem 0.65rem;
+  border-radius: 2px;
+  font-size: 0.825rem;
+  font-family: var(--font-body-var);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  width: 100%;
+}
+.tactical-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary), inset 0 0 4px rgba(214, 168, 79, 0.1);
+}
+.tactical-input::placeholder {
+  color: rgba(146, 151, 155, 0.6);
+  font-size: 0.775rem;
+}
+
+/* =============================================================================
+   TACTICAL BEACONS & LED INDICATORS
+   ============================================================================= */
+
+.beacon-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 1px;
+  display: inline-block;
+  flex-shrink: 0;
+  position: relative;
+}
+.beacon-online {
+  background-color: var(--alert-success);
+  box-shadow: 0 0 6px var(--alert-success);
+  animation: beacon-tactical-pulse 2.2s infinite ease-in-out;
+}
+.beacon-critical {
+  background-color: var(--alert-critical);
+  box-shadow: 0 0 8px var(--alert-critical);
+  animation: beacon-tactical-flash 0.65s infinite ease-in-out;
+}
+.beacon-standby {
+  background-color: var(--text-muted);
+}
+.beacon-warning {
+  background-color: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+}
+
+@keyframes beacon-tactical-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@keyframes beacon-tactical-flash {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scale(0.9);
+  }
+}
+
+/* =============================================================================
+   BRACKETED TACTICAL BADGES (MIL-SPEC STYLE)
+   ============================================================================= */
+
+.tactical-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.18rem 0.45rem;
+  border-radius: 2px;
+  font-size: 0.675rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-family: var(--font-mono-var);
+}
+
+.badge-critical {
+  background-color: rgba(217, 92, 92, 0.12);
+  color: var(--alert-critical);
+  border: 1px solid rgba(217, 92, 92, 0.4);
+}
+.badge-warning {
+  background-color: rgba(214, 168, 79, 0.12);
+  color: var(--primary);
+  border: 1px solid rgba(214, 168, 79, 0.4);
+}
+.badge-success {
+  background-color: rgba(114, 168, 121, 0.12);
+  color: var(--alert-success);
+  border: 1px solid rgba(114, 168, 121, 0.4);
+}
+.badge-muted {
+  background-color: rgba(146, 151, 155, 0.1);
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+
+/* =============================================================================
+   HUD SCANLINE & RETICLE OVERLAYS
+   ============================================================================= */
+
+.hud-scanline {
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0) 50%,
+    rgba(0, 0, 0, 0.3) 50%,
+    rgba(0, 0, 0, 0.3)
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+/* Modal Backdrops */
+.tactical-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(10, 12, 14, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 1rem;
+}
+
+.tactical-modal {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  max-width: 680px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 2px;
+}

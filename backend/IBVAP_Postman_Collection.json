@@ -1,0 +1,1067 @@
+{
+  "info": {
+    "name": "IBVAP - Live Video Analytics & Surveillance Gateway",
+    "description": "Postman Collection for testing all REST endpoints, Live Video Streaming Gateway, Dynamic Zones, Alerts, Forensics, and Whitelists.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01. Authentication",
+      "item": [
+        {
+          "name": "1. Login (Super Admin) - Auto Saves Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.access_token) {",
+                  "    pm.collectionVariables.set('token', jsonData.access_token);",
+                  "    console.log('JWT Token successfully set in collection variables!');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Current User Profile (/me)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "02. Live Video Streaming Gateway",
+      "item": [
+        {
+          "name": "1. Live Snapshot JPEG (CAM-01)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/streams/CAM-01/snapshot",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "streams",
+                "CAM-01",
+                "snapshot"
+              ]
+            },
+            "description": "Returns a single latest high-res JPEG frame with CLAHE enhancement and AI bounding boxes. In Postman, check the response body preview tab to see the live surveillance frame image!"
+          }
+        },
+        {
+          "name": "2. Live Camera Telemetry (CAM-01)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/streams/CAM-01/telemetry",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "streams",
+                "CAM-01",
+                "telemetry"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Live MJPEG Video Feed (Browser / VLC / Postman)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/streams/CAM-01/feed",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "streams",
+                "CAM-01",
+                "feed"
+              ]
+            },
+            "description": "Continuous multipart/x-mixed-replace stream. Open in any browser tab to watch the dynamic 30 FPS tactical sentry video feed with microsecond clock, sweeping radar, and targets moving across tripwires!"
+          }
+        }
+      ]
+    },
+    {
+      "name": "03. Camera Management",
+      "item": [
+        {
+          "name": "1. List Provisioned Cameras",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/cameras",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cameras"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Connect / Launch Camera Stream (CAM-01)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/cameras/CAM-01/connect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cameras",
+                "CAM-01",
+                "connect"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Disconnect / Stop Camera Stream (CAM-01)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/cameras/CAM-01/disconnect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "cameras",
+                "CAM-01",
+                "disconnect"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "04. Dynamic Zone Calibration",
+      "item": [
+        {
+          "name": "1. Get Active Zones (CAM-01)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/zones/CAM-01",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "zones",
+                "CAM-01"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Live Dynamic Zone Calibration (Zero Restart)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"camera_id\": \"CAM-01\",\n  \"geofence_polygon\": [\n    [100, 200],\n    [900, 200],\n    [1000, 650],\n    [50, 650]\n  ],\n  \"tripwire_line\": [\n    [100, 450],\n    [950, 450]\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/zones/CAM-01",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "zones",
+                "CAM-01"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "05. Perimeter Alerts",
+      "item": [
+        {
+          "name": "1. List Alerts (Filter by Severity & Unacknowledged)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts?severity=CRITICAL&is_acknowledged=false&limit=25",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts"
+              ],
+              "query": [
+                {
+                  "key": "severity",
+                  "value": "CRITICAL"
+                },
+                {
+                  "key": "is_acknowledged",
+                  "value": "false"
+                },
+                {
+                  "key": "limit",
+                  "value": "25"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Aggregated Threat Statistics Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Acknowledge Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolution_notes\": \"Sentry sent to Sector 1 fence. Verified perimeter secured.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/ALT-EXAMPLE-ID/acknowledge",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "alerts",
+                "ALT-EXAMPLE-ID",
+                "acknowledge"
+              ]
+            },
+            "description": "Replace ALT-EXAMPLE-ID with any real alert id from request #1."
+          }
+        }
+      ]
+    },
+    {
+      "name": "06. Forensic Evidence Locker",
+      "item": [
+        {
+          "name": "1. List Evidence Records",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence?limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Cryptographic SHA-256 Verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence/EV-EXAMPLE-ID/verify",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence",
+                "EV-EXAMPLE-ID",
+                "verify"
+              ]
+            },
+            "description": "Replace EV-EXAMPLE-ID with an ID from request #1 to verify its SHA-256 checksum on disk."
+          }
+        },
+        {
+          "name": "3. Update Investigation Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"INVESTIGATING\",\n  \"resolution_notes\": \"Case escalated to Tactical Sentry Commander.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/evidence/EV-EXAMPLE-ID/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "evidence",
+                "EV-EXAMPLE-ID",
+                "status"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "07. Biometric & Vehicle Whitelist",
+      "item": [
+        {
+          "name": "1. List Whitelisted Personnel (FRS)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Enroll Authorized Personnel",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"full_name\": \"Captain Vikram Rathore\",\n  \"designation\": \"Border Patrol Commander\",\n  \"badge_number\": \"BSF-7789\",\n  \"department\": \"Quick Reaction Team\",\n  \"face_embedding\": [0.01, 0.02, -0.05, 0.12, 0.04, -0.08, 0.11, 0.09]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/personnel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "personnel"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. List Whitelisted Vehicles (ANPR)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/vehicles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "vehicles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "4. Register Whitelisted Vehicle Plate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"license_plate\": \"ARMY88X99\",\n  \"vehicle_type\": \"jeep\",\n  \"owner_name\": \"Border Security Patrol Unit\",\n  \"department\": \"Sector 1 Patrol\",\n  \"notes\": \"Authorized Armored Patrol\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/vehicles",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "vehicles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. Force Bidirectional Whitelist Sync",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/sync",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "sync"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "08. Command & Control Dashboard",
+      "item": [
+        {
+          "name": "1. Central C2 Summary Metrics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/dashboard/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "09. ANPR Checkpoint Vehicle Crossings",
+      "item": [
+        {
+          "name": "1. List Vehicle Crossings (Filterable)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crossings?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crossings"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "camera_id",
+                  "value": "CAM-01",
+                  "disabled": true
+                },
+                {
+                  "key": "license_plate",
+                  "value": "ARMY",
+                  "disabled": true
+                },
+                {
+                  "key": "is_whitelisted",
+                  "value": "true",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Checkpoint Summary Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crossings/summary",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crossings",
+                "summary"
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Vehicle Crossing by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/crossings/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "crossings",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Personnel Biometric Photo Upload",
+      "item": [
+        {
+          "name": "1. Enroll Personnel via Photo Upload (Auto-Embedding)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "photo",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "full_name",
+                  "value": "Subedar Neeraj Kumar",
+                  "type": "text"
+                },
+                {
+                  "key": "designation",
+                  "value": "Border Sentry Patrol",
+                  "type": "text"
+                },
+                {
+                  "key": "badge_number",
+                  "value": "BSF-8821-N",
+                  "type": "text"
+                },
+                {
+                  "key": "department",
+                  "value": "Northern Outpost Command",
+                  "type": "text"
+                },
+                {
+                  "key": "enhance",
+                  "value": "true",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/whitelist/personnel/upload-photo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "whitelist",
+                "personnel",
+                "upload-photo"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Military Non-Repudiation Audit Logs",
+      "item": [
+        {
+          "name": "1. Query System Audit Logs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-logs?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "action",
+                  "value": "PERSONNEL_ENROLLED",
+                  "disabled": true
+                },
+                {
+                  "key": "entity_type",
+                  "value": "alert",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Audit Log Record by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/audit-logs/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "12. Object Tracking & Kinematics",
+      "item": [
+        {
+          "name": "1. Get Live Active Tracks Across Feeds",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tracks/active",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tracks",
+                "active"
+              ],
+              "query": [
+                {
+                  "key": "camera_id",
+                  "value": "CAM-01",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Camera Track History & Trajectories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tracks/CAM-01/history?limit=50&offset=0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tracks",
+                "CAM-01",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                },
+                {
+                  "key": "offset",
+                  "value": "0"
+                },
+                {
+                  "key": "threat_min",
+                  "value": "50",
+                  "disabled": true
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "3. Get Track Session Detail by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/tracks/sessions/1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "tracks",
+                "sessions",
+                "1"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "13. System Storage & Air-Gapped Maintenance",
+      "item": [
+        {
+          "name": "1. Get Storage Health & Allocation",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/system/storage",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "system",
+                "storage"
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Trigger FIFO Storage Retention Prune",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"max_age_days\": 30,\n  \"max_storage_mb\": 5000\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/system/prune",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "system",
+                "prune"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
